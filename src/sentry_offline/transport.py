@@ -58,6 +58,7 @@ class OfflineTransport(Transport):
         http_transport._send_request = _send_request_wrapper
 
         self._http_transport = http_transport
+        self._worker.submit(self.retry_envelopes)
 
     def flush(
         self,
@@ -89,4 +90,19 @@ class OfflineTransport(Transport):
         with path.open(mode="wb") as fh:
             envelope.serialize_into(fh)
 
-        logger.debug(f"Saved envelope to {path}.")
+        logger.debug("Saved envelope to %s.", path)
+
+    def retry_envelopes(self):
+        for file in self._storage.iterdir():
+            logger.debug("Retry envelope %s", file)
+
+            with file.open(mode="rb") as fh:
+                try:
+                    envelope = Envelope.deserialize_from(fh)
+                except Exception as exc:
+                    logger.warning("Cannot deserialize envelope from %s. Error: %s", file, exc)
+                    file.unlink(missing_ok=True)
+                    continue
+
+            file.unlink(missing_ok=True)
+            self.capture_envelope(envelope)
