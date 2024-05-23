@@ -2,7 +2,7 @@ import functools
 import logging
 from os import PathLike
 from pathlib import Path
-from typing import Any, ClassVar, NotRequired, Optional, TypedDict
+from typing import Any, ClassVar, Optional
 
 from sentry_sdk.envelope import Envelope
 from sentry_sdk.transport import HttpTransport, Transport
@@ -12,18 +12,12 @@ logger = logging.getLogger("sentry_offline")
 logging.basicConfig(level=logging.INFO)
 
 
-class Options(TypedDict):
-    storage_dir: PathLike | str
-    debug: NotRequired[bool]
-
-
-def offline_transport(options: Options) -> type["OfflineTransport"]:
-    debug = options.get("debug", False)
-
+def offline_transport(
+    *, storage_dir: PathLike | str, debug: bool = False
+) -> type["OfflineTransport"]:
     if debug:
         logger.setLevel(logging.DEBUG)
 
-    storage_dir = options.get("storage_dir")
     storage_path = Path(storage_dir).expanduser().resolve()
 
     storage_path.mkdir(parents=True, exist_ok=True)

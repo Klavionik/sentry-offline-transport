@@ -8,7 +8,7 @@ def test_transport_saves_envelope(tmp_path):
     """
     No network, save envelope on disk.
     """
-    transport_class = offline_transport({"storage_dir": tmp_path})
+    transport_class = offline_transport(storage_dir=tmp_path)
     sentry_sdk.init(dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234", transport=transport_class)
 
     event_id = sentry_sdk.capture_message("message")
@@ -22,7 +22,7 @@ def test_transport_doesnt_save_envelope(tmp_path, socket_enabled):
     """
     Network is fine, do not save envelope on disk.
     """
-    transport_class = offline_transport({"storage_dir": tmp_path})
+    transport_class = offline_transport(storage_dir=tmp_path)
     sentry_sdk.init(dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234", transport=transport_class)
 
     event_id = sentry_sdk.capture_message("message")
@@ -33,7 +33,7 @@ def test_transport_doesnt_save_envelope(tmp_path, socket_enabled):
 
 
 def test_transport_saves_multiple_envelopes(tmp_path):
-    transport_class = offline_transport({"storage_dir": tmp_path})
+    transport_class = offline_transport(storage_dir=tmp_path)
     sentry_sdk.init(dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234", transport=transport_class)
 
     event_ids = [
