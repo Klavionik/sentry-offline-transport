@@ -3,8 +3,15 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 import sentry_sdk
 from sentry_offline import offline_transport
+
+
+@pytest.fixture
+def fixture_envelope_path() -> Path:
+    fixture_event_id = "0f8ff792fc1c400bb8a0133a47257dbe"
+    return Path(__file__).parent / "fixtures" / fixture_event_id
 
 
 def test_transport_saves_envelope(tmp_path):
@@ -36,6 +43,9 @@ def test_transport_doesnt_save_envelope(tmp_path, socket_enabled):
 
 
 def test_transport_saves_multiple_envelopes(tmp_path):
+    """
+    No network, save multiple envelope on disk.
+    """
     transport_class = offline_transport(storage_dir=tmp_path)
     sentry_sdk.init(dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234", transport=transport_class)
 
@@ -51,12 +61,14 @@ def test_transport_saves_multiple_envelopes(tmp_path):
     assert all(saved_events)
 
 
-def test_transport_retries_envelope_success(monkeypatch, tmp_path, socket_enabled):
-    fixture_event_id = "0f8ff792fc1c400bb8a0133a47257dbe"
-    shutil.copyfile(
-        Path(__file__).parent / "fixtures" / fixture_event_id, tmp_path / fixture_event_id
-    )
-    transport_class = offline_transport(storage_dir=tmp_path, debug=True)
+def test_transport_retries_envelope_success(
+    socket_enabled, monkeypatch, tmp_path, fixture_envelope_path
+):
+    """
+    Network is on, successfully upload earlier saved events and delete them from the disk.
+    """
+    shutil.copyfile(fixture_envelope_path, tmp_path / fixture_envelope_path.name)
+    transport_class = offline_transport(storage_dir=tmp_path)
 
     capture_envelope_mock = MagicMock()
     monkeypatch.setattr(transport_class, "capture_envelope", capture_envelope_mock)
@@ -66,15 +78,15 @@ def test_transport_retries_envelope_success(monkeypatch, tmp_path, socket_enable
     time.sleep(0.1)
 
     assert capture_envelope_mock.call_count == 1
-    assert not (tmp_path / fixture_event_id).exists()
+    assert not (tmp_path / fixture_envelope_path.name).exists()
 
 
-def test_transport_retries_envelope_failure(monkeypatch, tmp_path):
-    fixture_event_id = "0f8ff792fc1c400bb8a0133a47257dbe"
-    shutil.copyfile(
-        Path(__file__).parent / "fixtures" / fixture_event_id, tmp_path / fixture_event_id
-    )
-    transport_class = offline_transport(storage_dir=tmp_path, debug=True)
+def test_transport_retries_envelope_failure(monkeypatch, tmp_path, fixture_envelope_path):
+    """
+    No network, cannot upload earlier saved events, resave them on disk.
+    """
+    shutil.copyfile(fixture_envelope_path, tmp_path / fixture_envelope_path.name)
+    transport_class = offline_transport(storage_dir=tmp_path)
     original_save_envelope = transport_class.save_envelope
 
     def save_envelope(envelope):
@@ -89,4 +101,4 @@ def test_transport_retries_envelope_failure(monkeypatch, tmp_path):
     time.sleep(0.1)
 
     assert save_envelope_mock.call_count == 1
-    assert (tmp_path / fixture_event_id).exists()
+    assert (tmp_path / fixture_envelope_path.name).exists()

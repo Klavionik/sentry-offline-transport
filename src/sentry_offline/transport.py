@@ -19,7 +19,6 @@ def offline_transport(
         logger.setLevel(logging.DEBUG)
 
     storage_path = Path(storage_dir).expanduser().resolve()
-
     storage_path.mkdir(parents=True, exist_ok=True)
     OfflineTransport.set_storage(storage_path)
 
