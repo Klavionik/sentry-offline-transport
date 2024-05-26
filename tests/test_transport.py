@@ -3,6 +3,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+import sentry_sdk
+from sentry_offline import offline_transport as offline_transport_
 from sentry_offline.transport import OfflineTransport, load_envelope
 from sentry_sdk.client import get_options
 from sentry_sdk.envelope import Envelope
@@ -27,9 +29,9 @@ def fixture_envelope(fixture_envelope_path) -> Envelope:
 @pytest.fixture
 def offline_transport(fixture_envelope_path, tmp_path) -> OfflineTransport:
     transport = OfflineTransport(
+        get_options(dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234"),
         storage=tmp_path,
         resend_on_startup=False,
-        **get_options(dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234"),
     )
     return transport
 
@@ -107,3 +109,20 @@ def test_envelope_retried_and_removed(
     offline_transport.flush(timeout=3)
 
     assert not (offline_transport.storage / fixture_event_id).exists()
+
+
+def test_sentry_sdk_integration(socket_disabled, tmp_path):
+    sentry_sdk.init(
+        dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234",
+        transport=offline_transport_(storage_path=tmp_path),
+    )
+    client = sentry_sdk.get_client()
+
+    assert client.transport is not None
+    assert isinstance(client.transport, OfflineTransport)
+    assert client.transport.storage == tmp_path
+
+    event_id = sentry_sdk.capture_message("a message")
+    sentry_sdk.flush()
+
+    assert (tmp_path / event_id).exists()

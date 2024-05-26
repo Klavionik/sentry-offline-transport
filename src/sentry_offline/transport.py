@@ -1,11 +1,10 @@
+import functools
 import logging
 from os import PathLike
 from pathlib import Path
 from time import sleep
 from typing import Any, Optional
 
-import sentry_sdk
-from sentry_sdk.client import get_options
 from sentry_sdk.envelope import Envelope
 from sentry_sdk.transport import HttpTransport
 
@@ -13,27 +12,29 @@ logger = logging.getLogger("sentry_offline")
 logging.basicConfig(level=logging.INFO)
 
 
-def init(
-    *,
+def offline_transport(
     storage_path: PathLike[str],
     resend_on_startup: bool = True,
     debug: bool = False,
-    **sentry_options: Any,
-) -> None:
+) -> type["OfflineTransport"]:
     if debug:
         logger.setLevel(logging.DEBUG)
 
     storage = Path(storage_path).expanduser().resolve()
     storage.mkdir(parents=True, exist_ok=True)
 
-    transport = OfflineTransport(storage, resend_on_startup, **get_options(**sentry_options))
-    sentry_sdk.init(**sentry_options, transport=transport)
+    class _OfflineTransport(OfflineTransport):
+        __init__ = functools.partialmethod(
+            OfflineTransport.__init__, storage=storage, resend_on_startup=resend_on_startup
+        )  # type: ignore[assignment]
+
+    return _OfflineTransport  # type: ignore[no-any-return]
 
 
 class OfflineTransport(HttpTransport):
-    def __init__(self, storage: Path, resend_on_startup: bool = True, **sentry_options: Any):
+    def __init__(self, options: Any, storage: Path, resend_on_startup: bool = True):
         logger.debug("Initialize OfflineTransport.")
-        super().__init__(sentry_options)
+        super().__init__(options)
         self.storage = storage
 
         if resend_on_startup:
