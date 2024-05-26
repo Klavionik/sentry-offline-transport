@@ -2,68 +2,48 @@ import logging
 from os import PathLike
 from pathlib import Path
 from time import sleep
-from typing import Any, ClassVar, Optional
+from typing import Any, Optional
 
+import sentry_sdk
+from sentry_sdk.client import get_options
 from sentry_sdk.envelope import Envelope
-from sentry_sdk.transport import HttpTransport, Transport
-from sentry_sdk.worker import BackgroundWorker
+from sentry_sdk.transport import HttpTransport
 
 logger = logging.getLogger("sentry_offline")
 logging.basicConfig(level=logging.INFO)
 
 
-def offline_transport(
-    *, storage_dir: PathLike | str, debug: bool = False
-) -> type["OfflineTransport"]:
+def init(
+    *,
+    storage_path: PathLike[str],
+    resend_on_startup: bool = True,
+    debug: bool = False,
+    **sentry_options: Any,
+) -> None:
     if debug:
         logger.setLevel(logging.DEBUG)
 
-    storage_path = Path(storage_dir).expanduser().resolve()
-    storage_path.mkdir(parents=True, exist_ok=True)
-    OfflineTransport.set_storage(storage_path)
+    storage = Path(storage_path).expanduser().resolve()
+    storage.mkdir(parents=True, exist_ok=True)
 
-    return OfflineTransport
+    transport = OfflineTransport(storage, resend_on_startup, **get_options(**sentry_options))
+    sentry_sdk.init(**sentry_options, transport=transport)
 
 
-class OfflineTransport(Transport):
-    _storage: ClassVar[Optional[Path]] = None
-
-    def __init__(self, options: dict[str, Any]):
-        super().__init__(options)
+class OfflineTransport(HttpTransport):
+    def __init__(self, storage: Path, resend_on_startup: bool = True, **sentry_options: Any):
         logger.debug("Initialize OfflineTransport.")
+        super().__init__(sentry_options)
+        self.storage = storage
 
-        self._worker = BackgroundWorker()
-
-        http_transport = HttpTransport(options)
-        original_send_envelope = http_transport._send_envelope
-
-        def _send_envelope_wrapper(envelope: Envelope) -> None:
-            try:
-                original_send_envelope(envelope)
-            except Exception:
-                logger.debug("An envelope is picked up to be saved and retried.")
-                self.save_envelope(envelope)
-                raise
-            else:
-                logger.debug("Try to remove envelope in case it was read from the disk.")
-                self.remove_envelope(envelope)
-
-        http_transport._send_envelope = _send_envelope_wrapper
-        self._http_transport = http_transport
-
-        self.read_storage()
-
-    @classmethod
-    def set_storage(cls, storage: Path) -> None:
-        cls._storage = storage
+        if resend_on_startup:
+            self._worker.submit(self.read_storage)
 
     def save_envelope(self, envelope: Envelope) -> None:
-        if self._storage is None:
-            logger.warning("Storage not set, skip saving.")
-            return
+        event_id = envelope.headers.get("event_id")
+        assert event_id, "Envelope with no event_id"
 
-        filename = envelope.headers.get("event_id")
-        path = self._storage / filename
+        path = self.storage / event_id
 
         with path.open(mode="wb") as fh:
             envelope.serialize_into(fh)
@@ -72,33 +52,33 @@ class OfflineTransport(Transport):
 
     def remove_envelope(self, envelope: Envelope) -> None:
         event_id = envelope.headers.get("event_id")
-        (self._storage / event_id).unlink(missing_ok=True)
+        assert event_id, "Envelope with no event_id"
 
-    def retry_envelope(self, envelope: Envelope) -> None:
-        self._http_transport.capture_envelope(envelope)
+        (self.storage / event_id).unlink(missing_ok=True)
 
-    def read_storage(self):
-        for file in self._storage.iterdir():
+    def read_storage(self) -> None:
+        for file in self.storage.iterdir():
             envelope = load_envelope(file)
+
+            if envelope is None:
+                continue
+
             sleep(0.1)  # Try not to overflood the queue.
-            self.retry_envelope(envelope)
+            self.capture_envelope(envelope)
 
-    def capture_envelope(self, envelope: Envelope) -> None:
-        self._http_transport.capture_envelope(envelope)
-
-    def flush(self, timeout: float, callback: Optional[Any] = None) -> None:
-        logger.debug("Flushing OfflineTransport...")
-        self._worker.flush(timeout, callback)
-        self._http_transport.flush(timeout, callback)
-
-    def kill(self) -> None:
-        logger.debug("Killing OfflineTransport...")
-        OfflineTransport._storage = None
-        self._worker.kill()
-        self._http_transport.kill()
+    def _send_envelope(self, envelope: Envelope) -> None:
+        try:
+            super()._send_envelope(envelope)
+        except Exception:
+            logger.debug("An envelope is picked up to be saved and retried.")
+            self.save_envelope(envelope)
+            raise
+        else:
+            logger.debug("Try to remove envelope in case it was read from the disk.")
+            self.remove_envelope(envelope)
 
 
-def load_envelope(file: Path) -> Envelope:
+def load_envelope(file: Path) -> Optional[Envelope]:
     with file.open(mode="rb") as fh:
         try:
             return Envelope.deserialize_from(fh)

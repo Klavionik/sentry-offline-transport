@@ -1,3 +1,3 @@
-from src.sentry_offline.transport import offline_transport
+from sentry_offline.transport import init
 
-__all__ = ["offline_transport"]
+__all__ = ["init"]
