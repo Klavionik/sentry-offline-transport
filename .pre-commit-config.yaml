@@ -16,7 +16,23 @@ repos:
       - id: ruff
         args:
           - --fix
+        stages:
+          - commit
       - id: ruff-format
+        stages:
+          - commit
+
+      - id: ruff
+        name: ruff-check
+        stages:
+          - manual
+
+      - id: ruff-format
+        name: ruff-format-check
+        args:
+          - --diff
+        stages:
+          - manual
 
   - repo: local
     hooks:
