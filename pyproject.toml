@@ -8,8 +8,8 @@ readme = "README.md"
 packages = [{include = "sentry_offline", from = "src"}]
 
 [tool.poetry.dependencies]
-python = "^3.11"
-sentry-sdk = "^2.3.1"
+python = ">=3.8"
+sentry-sdk = ">=2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.1"
