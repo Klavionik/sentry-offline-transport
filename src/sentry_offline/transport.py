@@ -3,7 +3,7 @@ import logging
 from os import PathLike
 from pathlib import Path
 from time import sleep
-from typing import Any, Optional
+from typing import Any, Optional, Type
 
 from sentry_sdk.envelope import Envelope
 from sentry_sdk.transport import HttpTransport
@@ -13,10 +13,10 @@ logging.basicConfig(level=logging.INFO)
 
 
 def offline_transport(
-    storage_path: PathLike[str],
+    storage_path: "PathLike[str]",
     resend_on_startup: bool = True,
     debug: bool = False,
-) -> type["OfflineTransport"]:
+) -> Type["OfflineTransport"]:
     if debug:
         logger.setLevel(logging.DEBUG)
 
