@@ -1,4 +1,5 @@
 import functools
+import hashlib
 import logging
 import sys
 from pathlib import Path
@@ -42,21 +43,19 @@ class OfflineTransport(HttpTransport):
             self._worker.submit(self.read_storage)
 
     def save_envelope(self, envelope: Envelope) -> None:
-        event_id = envelope.headers.get("event_id")
-        assert event_id, "Envelope with no event_id"
+        content = envelope.serialize()
+        filename = hash_from_content(content)
 
-        path = self.storage / event_id
+        path = self.storage / filename
 
         with path.open(mode="wb") as fh:
-            envelope.serialize_into(fh)
+            fh.write(content)
 
         logger.debug("Saved envelope to %s.", path)
 
     def remove_envelope(self, envelope: Envelope) -> None:
-        event_id = envelope.headers.get("event_id")
-        assert event_id, "Envelope with no event_id"
-
-        (self.storage / event_id).unlink(missing_ok=True)
+        filename = hash_from_content(envelope.serialize())
+        (self.storage / filename).unlink(missing_ok=True)
 
     def read_storage(self) -> None:
         for file in self.storage.iterdir():
@@ -87,3 +86,9 @@ def load_envelope(file: Path) -> Optional[Envelope]:
         except Exception as exc:
             logger.warning("Cannot deserialize envelope from %s. Error: %s", file, exc)
             file.unlink(missing_ok=True)
+
+
+def hash_from_content(content: bytes) -> str:
+    hasher = hashlib.md5()
+    hasher.update(content)
+    return hasher.hexdigest()

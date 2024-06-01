@@ -11,13 +11,13 @@ from sentry_sdk.envelope import Envelope
 
 
 @pytest.fixture(scope="session")
-def fixture_event_id() -> str:
-    return "0f8ff792fc1c400bb8a0133a47257dbe"
+def fixture_name() -> str:
+    return "6ea8a22ebf7346f15c845e09efe4f992"
 
 
 @pytest.fixture(scope="session")
-def fixture_envelope_path(fixture_event_id) -> Path:
-    return Path(__file__).parent / "fixtures" / fixture_event_id
+def fixture_envelope_path(fixture_name) -> Path:
+    return Path(__file__).parent / "fixtures" / fixture_name
 
 
 @pytest.fixture(scope="session")
@@ -36,32 +36,30 @@ def offline_transport(fixture_envelope_path, tmp_path) -> OfflineTransport:
     return transport
 
 
-def test_saves_envelope(offline_transport, fixture_envelope, fixture_event_id):
+def test_saves_envelope(offline_transport, fixture_envelope, fixture_name):
     offline_transport.save_envelope(fixture_envelope)
 
-    assert (offline_transport.storage / fixture_event_id).exists()
+    assert (offline_transport.storage / fixture_name).exists()
 
 
-def test_removes_envelope(
-    offline_transport, fixture_envelope, fixture_event_id, fixture_envelope_path
-):
-    shutil.copyfile(fixture_envelope_path, offline_transport.storage / fixture_event_id)
+def test_removes_envelope(offline_transport, fixture_envelope, fixture_name, fixture_envelope_path):
+    shutil.copyfile(fixture_envelope_path, offline_transport.storage / fixture_name)
 
     offline_transport.remove_envelope(fixture_envelope)
 
-    assert not (offline_transport.storage / fixture_event_id).exists()
+    assert not (offline_transport.storage / fixture_name).exists()
 
 
 def test_remove_not_raises_on_missing_envelope(offline_transport, fixture_envelope):
     offline_transport.remove_envelope(fixture_envelope)
 
 
-def test_load_envelope_from_disk(tmp_path, fixture_envelope_path, fixture_event_id):
-    shutil.copyfile(fixture_envelope_path, tmp_path / fixture_event_id)
-    envelope = load_envelope(tmp_path / fixture_event_id)
+def test_load_envelope_from_disk(tmp_path, fixture_envelope_path, fixture_name):
+    shutil.copyfile(fixture_envelope_path, tmp_path / fixture_name)
+    envelope = load_envelope(tmp_path / fixture_name)
 
     assert isinstance(envelope, Envelope)
-    assert envelope.headers.get("event_id") == fixture_event_id
+    assert envelope.headers.get("event_id") == "0f8ff792fc1c400bb8a0133a47257dbe"
 
 
 def test_load_bad_envelope_from_disk_returns_none(tmp_path):
@@ -75,10 +73,10 @@ def test_load_bad_envelope_from_disk_returns_none(tmp_path):
 
 
 def test_transport_retries_stored_envelopes(
-    offline_transport, fixture_envelope, fixture_event_id, fixture_envelope_path
+    offline_transport, fixture_envelope, fixture_name, fixture_envelope_path
 ):
-    shutil.copyfile(fixture_envelope_path, offline_transport.storage / fixture_event_id)
-    shutil.copyfile(fixture_envelope_path, offline_transport.storage / (fixture_event_id + "_2"))
+    shutil.copyfile(fixture_envelope_path, offline_transport.storage / fixture_name)
+    shutil.copyfile(fixture_envelope_path, offline_transport.storage / (fixture_name + "_2"))
 
     offline_transport.capture_envelope = MagicMock(name="capture_envelope")
     offline_transport.read_storage()
@@ -88,18 +86,18 @@ def test_transport_retries_stored_envelopes(
 
 
 def test_envelope_saved_if_no_network(
-    socket_disabled, offline_transport, fixture_envelope, fixture_event_id
+    socket_disabled, offline_transport, fixture_envelope, fixture_name
 ):
     offline_transport.capture_envelope(fixture_envelope)
     offline_transport.flush(timeout=3)
 
-    assert (offline_transport.storage / fixture_event_id).exists()
+    assert (offline_transport.storage / fixture_name).exists()
 
 
 def test_envelope_retried_and_removed(
-    offline_transport, fixture_envelope, fixture_envelope_path, fixture_event_id
+    offline_transport, fixture_envelope, fixture_envelope_path, fixture_name
 ):
-    shutil.copyfile(fixture_envelope_path, offline_transport.storage / fixture_event_id)
+    shutil.copyfile(fixture_envelope_path, offline_transport.storage / fixture_name)
 
     # Simulate one envelope to be corrupted.
     with (offline_transport.storage / "bad_envelope").open(mode="w") as fh:
@@ -108,7 +106,7 @@ def test_envelope_retried_and_removed(
     offline_transport.read_storage()
     offline_transport.flush(timeout=3)
 
-    assert not (offline_transport.storage / fixture_event_id).exists()
+    assert not (offline_transport.storage / fixture_name).exists()
 
 
 def test_sentry_sdk_integration(socket_disabled, tmp_path):
@@ -125,4 +123,13 @@ def test_sentry_sdk_integration(socket_disabled, tmp_path):
     event_id = sentry_sdk.capture_message("a message")
     sentry_sdk.flush()
 
-    assert (tmp_path / event_id).exists()
+    tmp_files = list(tmp_path.iterdir())
+
+    assert len(tmp_files)
+
+    saved_event = tmp_files[0]
+
+    with saved_event.open(mode="rb") as fh:
+        envelope = Envelope.deserialize_from(fh)
+
+    assert envelope.headers.get("event_id") == event_id
