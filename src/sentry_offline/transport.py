@@ -1,23 +1,24 @@
 import functools
 import logging
-from os import PathLike
+import sys
 from pathlib import Path
 from time import sleep
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, Union
 
 from sentry_sdk.envelope import Envelope
 from sentry_sdk.transport import HttpTransport
 
 logger = logging.getLogger("sentry_offline")
-logging.basicConfig(level=logging.INFO)
+logger.addHandler(logging.NullHandler())
 
 
-def offline_transport(
-    storage_path: "PathLike[str]",
+def make_offline_transport(
+    storage_path: Union[Path, str],
     resend_on_startup: bool = True,
     debug: bool = False,
 ) -> Type["OfflineTransport"]:
     if debug:
+        logger.addHandler(logging.StreamHandler(sys.stderr))
         logger.setLevel(logging.DEBUG)
 
     storage = Path(storage_path).expanduser().resolve()

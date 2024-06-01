@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import sentry_sdk
-from sentry_offline import offline_transport as offline_transport_
+from sentry_offline import make_offline_transport
 from sentry_offline.transport import OfflineTransport, load_envelope
 from sentry_sdk.client import get_options
 from sentry_sdk.envelope import Envelope
@@ -114,7 +114,7 @@ def test_envelope_retried_and_removed(
 def test_sentry_sdk_integration(socket_disabled, tmp_path):
     sentry_sdk.init(
         dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234",
-        transport=offline_transport_(storage_path=tmp_path),
+        transport=make_offline_transport(storage_path=tmp_path),
     )
     client = sentry_sdk.get_client()
 
