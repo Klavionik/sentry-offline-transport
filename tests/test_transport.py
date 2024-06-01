@@ -85,6 +85,19 @@ def test_transport_retries_stored_envelopes(
     assert offline_transport.capture_envelope.call_count == 2
 
 
+def test_transport_removes_resent_events_from_disk(
+    offline_transport, fixture_envelope, fixture_event_id, fixture_envelope_path
+):
+    shutil.copyfile(fixture_envelope_path, offline_transport.storage / fixture_event_id)
+    shutil.copyfile(fixture_envelope_path, offline_transport.storage / (fixture_event_id + "_2"))
+
+    offline_transport.remove_envelope = MagicMock(name="remove_envelope")
+    offline_transport.read_storage()
+    offline_transport.flush(timeout=3)
+
+    assert offline_transport.remove_envelope.call_count == 2
+
+
 def test_envelope_saved_if_no_network(
     socket_disabled, offline_transport, fixture_envelope, fixture_name
 ):
