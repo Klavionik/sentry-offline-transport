@@ -1,14 +1,14 @@
 [tool.poetry]
 name = "sentry-offline-transport"
 version = "0.1.0"
-description = "Saves failed-to-send Sentry events on disk and resends them later."
+description = "Transport for Sentry that saves failed-to-send events on disk and resends them on the next launch."
 authors = ["Roman Vlasenko <klavionik@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 packages = [{include = "sentry_offline", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.8"
+python = ">=3.8,<4.0"
 sentry-sdk = ">=2.0.0"
 
 [tool.poetry.group.dev.dependencies]
