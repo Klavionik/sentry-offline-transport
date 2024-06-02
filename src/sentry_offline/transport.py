@@ -1,40 +1,14 @@
-import functools
 import logging
-import sys
-from pathlib import Path
 from time import sleep
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Optional
 
 from sentry_sdk.consts import EndpointType
 from sentry_sdk.envelope import Envelope
 from sentry_sdk.transport import HttpTransport
 
-from sentry_offline.storage import FilesystemStorage, Storage
+from sentry_offline.storage import Storage
 
 logger = logging.getLogger("sentry_offline")
-
-
-def make_offline_transport(
-    storage_path: Union[Path, str],
-    reupload_on_startup: bool = True,
-    storage: Optional[Storage] = None,
-    debug: bool = False,
-) -> Type["OfflineTransport"]:
-    if debug:
-        handler = logging.StreamHandler(sys.stderr)
-        handler.setFormatter(logging.Formatter("[sentry_offline] %(levelname)s: %(message)s"))
-        logger.addHandler(handler)
-        logger.setLevel(logging.DEBUG)
-
-    if storage is None:
-        storage = FilesystemStorage(storage_path)
-
-    class _OfflineTransport(OfflineTransport):
-        __init__ = functools.partialmethod(
-            OfflineTransport.__init__, storage=storage, reupload_on_startup=reupload_on_startup
-        )  # type: ignore[assignment]
-
-    return _OfflineTransport  # type: ignore[no-any-return]
 
 
 class OfflineTransport(HttpTransport):
