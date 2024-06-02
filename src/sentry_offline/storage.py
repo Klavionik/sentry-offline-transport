@@ -20,7 +20,7 @@ class Storage(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def list(self) -> Iterable[Envelope]:
+    def list(self) -> "Iterable[Envelope]":
         pass
 
 
@@ -44,7 +44,7 @@ class FilesystemStorage(Storage):
         filename = hash_from_content(envelope.serialize())
         (self.dir / filename).unlink(missing_ok=True)
 
-    def list(self) -> Iterable[Envelope]:
+    def list(self) -> "Iterable[Envelope]":
         for file in self.dir.iterdir():
             envelope = load_envelope(file)
 
