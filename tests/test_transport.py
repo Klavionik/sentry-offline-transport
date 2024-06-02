@@ -32,7 +32,7 @@ def offline_transport_factory():
         transport = OfflineTransport(
             get_options(dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234"),
             storage=storage or InMemoryStorage(),
-            resend_on_startup=False,
+            reupload_on_startup=False,
         )
         return transport
 

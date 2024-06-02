@@ -16,7 +16,7 @@ logger = logging.getLogger("sentry_offline")
 
 def make_offline_transport(
     storage_path: Union[Path, str],
-    resend_on_startup: bool = True,
+    reupload_on_startup: bool = True,
     storage: Optional[Storage] = None,
     debug: bool = False,
 ) -> Type["OfflineTransport"]:
@@ -31,19 +31,19 @@ def make_offline_transport(
 
     class _OfflineTransport(OfflineTransport):
         __init__ = functools.partialmethod(
-            OfflineTransport.__init__, storage=storage, resend_on_startup=resend_on_startup
+            OfflineTransport.__init__, storage=storage, reupload_on_startup=reupload_on_startup
         )  # type: ignore[assignment]
 
     return _OfflineTransport  # type: ignore[no-any-return]
 
 
 class OfflineTransport(HttpTransport):
-    def __init__(self, options: Any, storage: Storage, resend_on_startup: bool = True):
+    def __init__(self, options: Any, storage: Storage, reupload_on_startup: bool = True):
         logger.debug("Initialize OfflineTransport.")
         super().__init__(options)
         self.storage = storage
 
-        if resend_on_startup:
+        if reupload_on_startup:
             self._worker.submit(self.flush_storage)
 
     def flush_storage(self) -> None:
