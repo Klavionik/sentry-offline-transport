@@ -10,11 +10,11 @@ def fixture_name() -> str:
 
 
 @pytest.fixture(scope="session")
-def fixture_envelope_path(fixture_name) -> Path:
+def fixture_envelope_path(fixture_name: str) -> Path:
     return Path(__file__).parent / "fixtures" / fixture_name
 
 
 @pytest.fixture(scope="session")
-def fixture_envelope(fixture_envelope_path) -> Envelope:
+def fixture_envelope(fixture_envelope_path: Path) -> Envelope:
     with fixture_envelope_path.open(mode="rb") as fh:
         return Envelope.deserialize_from(fh)

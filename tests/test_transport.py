@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from collections.abc import Callable
 from typing import Dict, Iterable, Optional
 from unittest.mock import MagicMock
 
@@ -10,7 +13,7 @@ from sentry_offline.transport import OfflineTransport
 
 
 class InMemoryStorage(Storage):
-    def __init__(self, envelopes: Optional[Iterable[Envelope]] = None):
+    def __init__(self, envelopes: Optional[Iterable[Envelope]] = None) -> None:
         self._storage: Dict[str, Envelope] = {}
 
         if envelopes:
@@ -28,8 +31,8 @@ class InMemoryStorage(Storage):
 
 
 @pytest.fixture
-def offline_transport_factory():
-    def factory(storage: Optional[Storage] = None):
+def offline_transport_factory() -> Callable[[Optional[Storage]], OfflineTransport]:
+    def factory(storage: Optional[Storage] = None) -> OfflineTransport:
         transport = OfflineTransport(
             get_options(dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234"),
             storage=storage or InMemoryStorage(),
@@ -40,17 +43,23 @@ def offline_transport_factory():
     return factory
 
 
-def test_transport_retries_stored_envelopes(offline_transport_factory, fixture_envelope):
+def test_transport_retries_stored_envelopes(
+    offline_transport_factory: Callable[[Optional[Storage]], OfflineTransport],
+    fixture_envelope: Envelope,
+) -> None:
     transport = offline_transport_factory(InMemoryStorage([fixture_envelope]))
 
-    transport.capture_envelope = MagicMock(name="capture_envelope")
+    transport.capture_envelope = MagicMock(name="capture_envelope")  # type: ignore[method-assign]
     transport.flush_storage()
     transport.flush(timeout=3)
 
     assert transport.capture_envelope.call_count == 1
 
 
-def test_transport_removes_resent_events_from_disk(offline_transport_factory, fixture_envelope):
+def test_transport_removes_resent_events_from_disk(
+    offline_transport_factory: Callable[[Optional[Storage]], OfflineTransport],
+    fixture_envelope: Envelope,
+) -> None:
     storage = InMemoryStorage([fixture_envelope])
     transport = offline_transport_factory(storage)
 
@@ -60,7 +69,11 @@ def test_transport_removes_resent_events_from_disk(offline_transport_factory, fi
     assert not len(list(storage.list()))
 
 
-def test_envelope_saved_if_no_network(socket_disabled, offline_transport_factory, fixture_envelope):
+@pytest.mark.usefixtures("socket_disabled")
+def test_envelope_saved_if_no_network(
+    offline_transport_factory: Callable[[Optional[Storage]], OfflineTransport],
+    fixture_envelope: Envelope,
+) -> None:
     storage = InMemoryStorage()
     transport = offline_transport_factory(storage)
     transport.capture_envelope(fixture_envelope)

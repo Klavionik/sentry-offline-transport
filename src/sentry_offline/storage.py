@@ -61,6 +61,7 @@ def load_envelope(file: Path) -> Optional[Envelope]:
         except Exception as exc:
             logger.warning("Cannot deserialize envelope from %s. Error: %s", file, exc)
             file.unlink(missing_ok=True)
+            return None
 
 
 def hash_from_content(content: bytes) -> str:

@@ -44,9 +44,7 @@ repos:
         entry: mypy
         args:
           - --strict
-          - --no-warn-no-return
           - --python-version=3.8
-        exclude: "^tests/"
         language: system
-        types: [ python ]
+        types: [python]
         require_serial: true

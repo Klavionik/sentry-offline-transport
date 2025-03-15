@@ -1,3 +1,6 @@
+from pathlib import Path
+
+import pytest
 import sentry_sdk
 from sentry_sdk.envelope import Envelope
 
@@ -5,7 +8,8 @@ from sentry_offline import make_offline_transport
 from sentry_offline.transport import OfflineTransport
 
 
-def test_sentry_sdk_integration(socket_disabled, tmp_path):
+@pytest.mark.usefixtures("socket_disabled")
+def test_sentry_sdk_integration(tmp_path: Path) -> None:
     sentry_sdk.init(
         dsn="https://asdf@abcd1234.ingest.us.sentry.io/1234",
         transport=make_offline_transport(storage_path=tmp_path, debug=True),
