@@ -1,7 +1,8 @@
 import sentry_sdk
+from sentry_sdk.envelope import Envelope
+
 from sentry_offline import make_offline_transport
 from sentry_offline.transport import OfflineTransport
-from sentry_sdk.envelope import Envelope
 
 
 def test_sentry_sdk_integration(socket_disabled, tmp_path):

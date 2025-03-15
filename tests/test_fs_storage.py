@@ -1,8 +1,9 @@
 import shutil
 
 import pytest
-from sentry_offline.storage import FilesystemStorage, load_envelope
 from sentry_sdk.envelope import Envelope
+
+from sentry_offline.storage import FilesystemStorage, load_envelope
 
 
 @pytest.fixture

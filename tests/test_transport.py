@@ -2,10 +2,11 @@ from typing import Dict, Iterable, Optional
 from unittest.mock import MagicMock
 
 import pytest
-from sentry_offline.storage import Storage, hash_from_content
-from sentry_offline.transport import OfflineTransport
 from sentry_sdk.client import get_options
 from sentry_sdk.envelope import Envelope
+
+from sentry_offline.storage import Storage, hash_from_content
+from sentry_offline.transport import OfflineTransport
 
 
 class InMemoryStorage(Storage):
