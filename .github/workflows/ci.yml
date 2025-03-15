@@ -50,7 +50,7 @@ jobs:
       - name: Run test suite
         run: tox --skip-pkg-install
       - name: Upload test coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
